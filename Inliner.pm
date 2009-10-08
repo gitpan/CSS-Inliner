@@ -1,6 +1,6 @@
-# $Id: Inliner.pm 2304 2009-10-08 19:29:29Z kamelkev $
+# $Id: Inliner.pm 2307 2009-10-08 20:52:34Z kamelkev $
 #
-# Copyright 2009 MailerMailer, LLC
+# Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
 # Based loosely on the TamTam RubyForge project:
 # http://tamtam.rubyforge.org/
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2304 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 2307 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -180,7 +180,12 @@ sub inlinify {
     #if an element matched a style within the document, convert it to inline
     foreach my $element (@{$elements}) {
       my $inline = $self->_expand({style => $$css{$key}});
-      my $cur_style = $self->attr('style');
+
+      my $cur_style = '';
+      if (defined($element->attr('style'))) {
+        $cur_style = $element->attr('style');
+      }
+
       $element->attr('style',$cur_style . $inline);
     }
   }

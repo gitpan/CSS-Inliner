@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                CSS-Inliner
-version:             2304
+version:             2307
 abstract:            Library for converting CSS <style> blocks to inline styles
 license:             perl
 author:              
