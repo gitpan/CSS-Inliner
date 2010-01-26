@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 2307 2009-10-08 20:52:34Z kamelkev $
+# $Id: Inliner.pm 2434 2010-01-26 15:24:56Z khera $
 #
 # Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2307 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 2434 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -128,6 +128,7 @@ sub read {
   }
 
   my $tree = new HTML::TreeBuilder();
+  $tree->store_comments(1);
   $tree->parse($$params{html});
 
   #rip all the style blocks out of html tree, and return that separately
