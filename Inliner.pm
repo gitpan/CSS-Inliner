@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 2434 2010-01-26 15:24:56Z khera $
+# $Id: Inliner.pm 2536 2010-04-26 22:52:47Z kamelkev $
 #
 # Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2434 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 2536 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -191,7 +191,13 @@ sub inlinify {
     }
   }
 
-  return $tree->as_HTML();
+  # The entities list is the do-not-encode string from HTML::Entities
+  # with the single quote added.
+
+  # 3rd argument below overrides the optional end tag, which for HTML::Element
+  # is just p, li, dt, dd - tags we want terminated for our purposes
+
+  return $tree->as_HTML(q@^\n\r\t !\#\$%\(-;=?-~'@,' ',{});
 }
 
 ##################################################################
