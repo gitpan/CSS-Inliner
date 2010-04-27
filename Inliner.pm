@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 2536 2010-04-26 22:52:47Z kamelkev $
+# $Id: Inliner.pm 2540 2010-04-27 16:17:54Z kamelkev $
 #
 # Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2536 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 2540 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -56,18 +56,15 @@ during file parsing/processing.
 =cut
 
 sub new {
-  my $this = shift;
-  my $class = ref($this) || $this;
+  my ($proto, $params) = @_;
+
+  my $class = ref($proto) || $proto;
 
   my $self = {
               css => undef,
               html => undef,
-              html_tree => undef,
+              html_tree => $$params{html_tree} || HTML::TreeBuilder->new(),
              };
-
-  if (@_) {
-    croak "Invalid number of arguments";
-  }
 
   bless $self, $class;
   return $self;
@@ -127,7 +124,7 @@ sub read {
     croak "You must pass in hash params that contains html data";
   }
 
-  my $tree = new HTML::TreeBuilder();
+  my $tree = $self->{html_tree};
   $tree->store_comments(1);
   $tree->parse($$params{html});
 
@@ -137,9 +134,6 @@ sub read {
 
   #stash the stylesheets
   $self->{css} = $style;
-
-  #keep the html tree for later so we don't have to reparse
-  $self->{html_tree} = $tree;
 
   return();
 }
@@ -176,6 +170,10 @@ sub inlinify {
   my $tree = $self->{html_tree};
 
   foreach my $key (keys %{$css}) {
+
+    #skip over psuedo selectors, they are not mappable the same
+    next if $key =~ /\w:(?:active|focus|hover|link|visited)\b/;
+
     my $elements = $tree->query($key);
 
     #if an element matched a style within the document, convert it to inline
@@ -214,7 +212,8 @@ sub _get_style {
   foreach my $i (@{$$params{tree_content}}) {
     next unless ref $i eq 'HTML::Element';
 
-    if (($i->tag eq 'style') && ($i->attr('media') =~ m/\b(all|screen)\b/)) {
+    #process this node if the html media type is screen, all or undefined (which defaults to screen)
+    if (($i->tag eq 'style') && (!$i->attr('media') || $i->attr('media') =~ m/\b(all|screen)\b/)) {
 
       foreach my $item ($i->content_list()) {
           $style .= $item;
