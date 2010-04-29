@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 2540 2010-04-27 16:17:54Z kamelkev $
+# $Id: Inliner.pm 2544 2010-04-29 16:45:41Z kamelkev $
 #
 # Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2540 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 2544 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -172,7 +172,10 @@ sub inlinify {
   foreach my $key (keys %{$css}) {
 
     #skip over psuedo selectors, they are not mappable the same
-    next if $key =~ /\w:(?:active|focus|hover|link|visited)\b/;
+    next if $key =~ /\w:(?:active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter)\b/io;
+
+    #skip over @import or anything else that might start with @ - not inlineable
+    next if $key =~ /^\@/io;
 
     my $elements = $tree->query($key);
 
