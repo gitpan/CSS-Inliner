@@ -1,6 +1,20 @@
 ChangeLog
-Inliner.pm
+lib/CSS/Inliner.pm
 MANIFEST
 Makefile.PL
 README
+t/acidtest.t
+t/acidtest_result.t
+t/advanced.t
+t/advanced_strip.t
+t/basic.t
+t/cascade.t
+t/custom_html_tree.t
+t/linktest.t
+t/ordering.t
+t/specificity.t
+t/html/acidtest.html
+t/html/acidtest_result.html
+t/html/linktest.html
+t/html/linktest_result.html
 META.yml                                 Module meta-data (added by MakeMaker)

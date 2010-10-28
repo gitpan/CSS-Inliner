@@ -3,13 +3,13 @@ NAME
     styles.
 
 SYNOPSIS
-     use Inliner;
+    use Inliner;
 
-     my $inliner = new Inliner();
+    my $inliner = new Inliner();
 
-     $inliner->read_file({filename => 'myfile.html'});
+    $inliner->read_file({filename => 'myfile.html'});
 
-     print $inliner->inlinify();
+    print $inliner->inlinify();
 
 DESCRIPTION
     Library for converting CSS style blocks into inline styles in an HTML
@@ -28,33 +28,68 @@ CONSTRUCTOR
         during inlining
 
 METHODS
+    fetch_file( params )
+         Fetches a remote HTML file that supposedly contains both HTML and a
+         style declaration. It subsequently calls the read() method
+         automatically.
+
+         This method expands all relative urls, as well as fully expands the
+         stylesheet reference within the document.
+
+         This method requires you to pass in a params hash that contains a
+         url argument for the requested document. For example:
+
+         $self->fetch_file({ url => 'http://www.example.com' });
+
     read_file( params )
-        Opens and reads an HTML file that supposedly contains both HTML and
-        a style declaration. It subsequently calls the read() method
-        automatically.
+         Opens and reads an HTML file that supposedly contains both HTML and
+         a style declaration. It subsequently calls the read() method
+         automatically.
 
-        This method requires you to pass in a params hash that contains a
-        filename argument. For example:
+         This method requires you to pass in a params hash that contains a
+         filename argument. For example:
 
-        $self->read_file({filename => 'myfile.html'});
+         $self->read_file({filename => 'myfile.html'});
 
     read( params )
-        Reads html data and parses it. The intermediate data is stored in
-        class variables.
+         Reads html data and parses it. The intermediate data is stored in
+         class variables.
 
-        The <style> block is ripped out of the html here, and stored
-        separately. Class/ID/Names used in the markup are left alone.
+         The <style> block is ripped out of the html here, and stored
+         separately. Class/ID/Names used in the markup are left alone.
 
-        This method requires you to pass in a params hash that contains
-        scalar html data. For example:
+         This method requires you to pass in a params hash that contains
+         scalar html data. For example:
 
-        $self->read({html => $html});
+         $self->read({html => $html});
 
     inlinify()
-        Processes the html data that was entered through either 'read' or
-        'read_file', returns a scalar that contains a composite chunk of
-        html that has inline styles instead of a top level <style>
-        declaration.
+         Processes the html data that was entered through either 'read' or
+         'read_file', returns a scalar that contains a composite chunk of
+         html that has inline styles instead of a top level <style>
+         declaration.
+
+    query()
+        Given a particular selector return back the applicable styles
+
+    specificity()
+        Calculate the specificity for any given passed selector, a critical
+        factor in determining how best to apply the cascade
+
+        A selector's specificity is calculated as follows:
+
+        * count the number of ID attributes in the selector (= a) * count
+        the number of other attributes and pseudo-classes in the selector (=
+        b) * count the number of element names in the selector (= c) *
+        ignore pseudo-elements.
+
+        The specificity is based only on the form of the selector. In
+        particular, a selector of the form "[id=p33]" is counted as an
+        attribute selector (a=0, b=0, c=1, d=0), even if the id attribute is
+        defined as an "ID" in the source document's DTD.
+
+        See the following spec for additional details:
+        <http://www.w3.org/TR/CSS21/cascade.html#specificity>
 
 Sponsor
     This code has been developed under sponsorship of MailerMailer LLC,
@@ -69,4 +104,14 @@ CONTRIBUTORS
 LICENSE
     This module is Copyright 2010 Khera Communications, Inc. It is licensed
     under the same terms as Perl itself.
+
+POD ERRORS
+    Hey! The above document had some coding errors, which are explained
+    below:
+
+    Around line 289:
+        '=item' outside of any '=over'
+
+    Around line 331:
+        '=item' outside of any '=over'
 
