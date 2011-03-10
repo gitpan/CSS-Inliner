@@ -1,6 +1,6 @@
-# $Id: Inliner.pm 3033 2011-03-10 00:52:01Z kamelkev $
+# $Id: Inliner.pm 3042 2011-03-10 19:58:09Z kamelkev $
 #
-# Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
+# Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 #
 # Based loosely on the TamTam RubyForge project:
 # http://tamtam.rubyforge.org/
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3033 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3042 $ =~ /(\d+)/;
 
 use Carp;
 
