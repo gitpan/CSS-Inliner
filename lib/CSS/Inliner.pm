@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 2897 2010-10-29 23:00:42Z kamelkev $
+# $Id: Inliner.pm 3033 2011-03-10 00:52:01Z kamelkev $
 #
 # Copyright 2009 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 2897 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3033 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -60,6 +60,7 @@ B<strip_attrs> (optional). Remove all "id" and "class" attributes during inlinin
 B<leave_style> (optional). Leave style/link tags alone within <head> during inlining
 
 =back
+
 =cut
 
 sub new {
@@ -195,8 +196,6 @@ Processes the html data that was entered through either 'read' or
 'read_file', returns a scalar that contains a composite chunk of html
 that has inline styles instead of a top level <style> declaration.
 
-=back
-
 =cut
 
 sub inlinify {
@@ -287,7 +286,7 @@ sub inlinify {
     $html = $self->{html};
   }
 
-  return $html;
+  return $html . "\n";
 }
 
 =pod
@@ -295,8 +294,6 @@ sub inlinify {
 =item query()
 
 Given a particular selector return back the applicable styles
-
-=back
 
 =cut
 
