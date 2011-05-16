@@ -19,4 +19,6 @@ t/html/acidtest.html
 t/html/acidtest_result.html
 t/html/linktest.html
 t/html/linktest_result.html
+t/html/linktest.html
+t/html/linktest_result.html
 META.yml                                 Module meta-data (added by MakeMaker)

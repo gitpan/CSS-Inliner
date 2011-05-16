@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 3042 2011-03-10 19:58:09Z kamelkev $
+# $Id: Inliner.pm 3209 2011-05-11 23:06:57Z kamelkev $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3042 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3209 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -44,9 +44,32 @@ document.  Specifically this is intended for the ease of generating
 HTML emails.  This is useful as even in 2009 Gmail and Hotmail don't
 support top level <style> declarations.
 
+=cut
+
+BEGIN {
+  my $members = ['stylesheet','css','html','html_tree','query','strip_attrs','leave_style','warns_as_errors','content_warnings'];
+
+  #generate all the getter/setter we need
+  foreach my $member (@{$members}) {
+    no strict 'refs';
+
+    *{'_' . $member} = sub {
+      my ($self,$value) = @_;
+
+      $self->_check_object();
+
+      $self->{$member} = $value if defined($value);
+
+      return $self->{$member};
+    }
+  }
+}
+
+=pod
+
 =head1 CONSTRUCTOR
 
-=over 4
+=over 3
 
 =item new ([ OPTIONS ])
 
@@ -70,12 +93,14 @@ sub new {
 
   my $self = {
     stylesheet => undef,
-    css => CSS::Simple->new(),
+    css => CSS::Simple->new({ warns_as_errors => $$params{warns_as_errors}}),
     html => undef,
     html_tree => $$params{html_tree} || HTML::TreeBuilder->new(),
-    query => HTML::Query->new(),
-    strip_attrs => defined($$params{strip_attrs}) ? 1 : 0,
-    leave_style => defined($$params{leave_style}) ? 1 : 0,
+    query => undef,
+    content_warnings => undef,
+    strip_attrs => (defined($$params{strip_attrs}) && $$params{strip_attrs}) ? 1 : 0,
+    leave_style => (defined($$params{leave_style}) && $$params{leave_style}) ? 1 : 0,
+    warns_as_errors => (defined($$params{warns_as_errors}) && $$params{warns_as_errors}) ? 1 : 0,
   };
 
   bless $self, $class;
@@ -88,7 +113,7 @@ sub new {
 
 =pod
 
-=over 5
+=over 8
 
 =item fetch_file( params )
 
@@ -108,6 +133,8 @@ $self->fetch_file({ url => 'http://www.example.com' });
 
 sub fetch_file {
   my ($self,$params) = @_;
+
+  $self->_check_object();
 
   unless ($params && $$params{url}) {
     croak "You must pass in hash params that contain a url argument";
@@ -136,6 +163,8 @@ $self->read_file({filename => 'myfile.html'});
 
 sub read_file {
   my ($self,$params) = @_;
+
+  $self->_check_object();
 
   unless ($params && $$params{filename}) {
     croak "You must pass in hash params that contain a filename argument";
@@ -169,21 +198,23 @@ $self->read({html => $html});
 sub read {
   my ($self,$params) = @_;
 
+  $self->_check_object();
+
   unless ($params && $$params{html}) {
     croak "You must pass in hash params that contains html data";
   }
 
-  $self->_get_tree()->store_comments(1);
-  $self->_get_tree()->parse($$params{html});
+  $self->_html_tree()->store_comments(1);
+  $self->_html_tree()->parse($$params{html});
 
-  $self->_get_query({tree => $self->_get_tree()});
+  $self->_init_query();
 
   #suck in the styles for later use from the head section - stylesheets anywhere else are invalid
   my $stylesheet = $self->_parse_stylesheet();
 
   #save the data
-  $self->_set_html({ html => $$params{html} });
-  $self->_set_stylesheet({ stylesheet => $stylesheet});
+  $self->_html($$params{html});
+  $self->_stylesheet($stylesheet);
 
   return();
 }
@@ -201,32 +232,54 @@ that has inline styles instead of a top level <style> declaration.
 sub inlinify {
   my ($self,$params) = @_;
 
-  unless ($self && ref $self) {
-    croak "You must instantiate this class in order to properly use it";
-  }
+  $self->_check_object();
 
-  unless ($self->{html} && defined $self->_get_tree()) {
+  $self->_content_warnings({}); # overwrite any existing warnings
+
+  unless ($self->_html() && $self->_html_tree()) {
     croak "You must instantiate and read in your content before inlinifying";
   }
 
   my $html;
-  if (defined $self->_get_css()) {
+  if (defined $self->_css()) {
     #parse and store the stylesheet as a hash object
 
-    $self->_get_css()->read({css => $self->{stylesheet}});
+    $self->_css()->read({css => $self->_stylesheet()});
+
+    my @css_warnings = @{$self->_css()->content_warnings()};
+
+    my %content_warns = map { $_ => 1} @css_warnings;
+
+    $self->_content_warnings(\%content_warns);
 
     my %matched_elements;
     my $count = 0;
 
-    foreach my $key ($self->_get_css()->get_selectors()) {
+    foreach my $key ($self->_css()->get_selectors()) {
 
       #skip over psuedo selectors, they are not mappable the same
-      next if $key =~ /\w:(?:active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter)\b/io;
+      if ($key =~ /[\w\*]:(?:(active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter|first-child|first-child))\b/io) {
+        $self->_report_warning({ info => "The pseudo-class ':$1' cannot be supported inline" });
+        next; 
+      }
 
       #skip over @import or anything else that might start with @ - not inlineable
-      next if $key =~ /^\@/io;
+      if ($key =~ /^\@/io) {
+        $self->_report_warning({ info => "The directive '$key' cannot be supported inline" });
+        next;
+      }
 
-      my $query_result = $self->query({ selector => $key });
+      my $query_result;
+
+      #check to see if query fails, possible for jacked selectors
+      eval { 
+        $query_result = $self->query({ selector => $key });
+      }; 
+
+      if ($@) {
+        $self->_report_warning({ info => $@->info() });
+        next; 
+      }
 
       # CSS rules cascade based on the specificity and order
       my $specificity = $self->specificity({selector => $key});
@@ -241,7 +294,7 @@ sub inlinify {
           element  => $element,
           specificity   => $specificity,
           position => $count,
-          css      => $self->_get_css()->get_properties({selector => $key}),
+          css      => $self->_css()->get_properties({selector => $key}),
          );
   
         push(@{$matched_elements{$element->address()}}, \%match_info);
@@ -280,7 +333,7 @@ sub inlinify {
     # 3rd argument overrides the optional end tag, which for HTML::Element
     # is just p, li, dt, dd - tags we want terminated for our purposes
 
-    $html = $self->_get_tree()->as_HTML(q@^\n\r\t !\#\$%\(-;=?-~'@,' ',{});
+    $html = $self->_html_tree()->as_HTML(q@^\n\r\t !\#\$%\(-;=?-~'@,' ',{});
   }
   else {
     $html = $self->{html};
@@ -300,7 +353,13 @@ Given a particular selector return back the applicable styles
 sub query {
   my ($self,$params) = @_;
 
-  return $self->_get_query()->query($$params{selector});
+  $self->_check_object();
+
+  unless ($self->_query()) {
+    $self->_init_query();
+  }
+
+  return $self->_query()->query($$params{selector});
 }
 
 =pod
@@ -309,14 +368,41 @@ sub query {
 
 Given a particular selector return back the associated selectivity
 
-=back
-
 =cut
 
 sub specificity {
   my ($self,$params) = @_;
 
-  return $self->_get_query()->get_specificity($$params{selector});
+  $self->_check_object();
+
+  unless ($self->_query()) {
+    $self->_init_query();
+  }
+
+  return $self->_query()->get_specificity($$params{selector});
+}
+
+=pod
+   
+=item content_warnings()
+  
+Return back any warnings thrown while inlining a given block of content.
+
+Note: content warnings are initialized at inlining time, not at read time. In
+order to receive back content feedback you must perform inlinify() first
+  
+=back
+
+=cut
+
+sub content_warnings {
+  my ($self,$params) = @_;
+
+  $self->_check_object();
+
+  my @content_warnings = keys %{$self->_content_warnings()};
+
+  return \@content_warnings;
 }
 
 ####################################################################
@@ -326,8 +412,37 @@ sub specificity {
 #                                                                  #
 ####################################################################
 
+
+sub _check_object {
+  my ($self, $params) = @_;
+
+  unless (ref $self) {
+   croak "You must instantiate this class in order to properly use it";
+  }
+
+  return ();
+}
+
+sub _report_warning {
+  my ($self,$params) = @_;
+
+  $self->_check_object();
+
+  if ($self->_warns_as_errors()) {
+    croak $$params{info};
+  }
+  else {
+    my $warnings = $self->_content_warnings();
+    $$warnings{$$params{info}} = 1;
+  }
+ 
+  return();
+}
+
 sub _fetch_url {
   my ($self,$params) = @_;
+
+  $self->_check_object();
 
   # Create a user agent object
   my $ua = LWP::UserAgent->new;
@@ -365,6 +480,8 @@ sub _fetch_url {
 sub _fetch_html {
   my ($self,$params) = @_;
 
+  $self->_check_object();
+
   my ($content,$baseref) = $self->_fetch_url({ url => $$params{url} });
 
   # Build the HTML tree
@@ -382,6 +499,8 @@ sub _fetch_html {
 
 sub _changelink_relative {
   my ($self,$params) = @_;
+
+  $self->_check_object();
 
   my $base = $$params{baseref};
   
@@ -427,6 +546,8 @@ sub _changelink_relative {
 sub __fix_relative_url {
   my ($self,$params) = @_;
 
+  $self->_check_object();
+
   my $uri = URI->new($$params{url});
   
   return $$params{prefix} . "'" . $uri->abs($$params{base})->as_string ."'";
@@ -434,6 +555,8 @@ sub __fix_relative_url {
 
 sub _expand_stylesheet {
   my ($self,$params) = @_;
+
+  $self->_check_object();
 
   my $doc = $$params{content};
 
@@ -482,10 +605,12 @@ sub _expand_stylesheet {
 sub _parse_stylesheet {
   my ($self,$params) = @_;
 
+  $self->_check_object();
+
   my $stylesheet = '';
 
   #get the head section of the document
-  my $head = $self->_get_tree()->look_down("_tag", "head"); # there should only be one
+  my $head = $self->_html_tree()->look_down("_tag", "head"); # there should only be one
 
   #get the <style> nodes underneath the head section - that's the only place stylesheets are allowed to live
   my @style = $head->look_down('_tag','style','type','text/css');
@@ -522,8 +647,10 @@ sub _parse_stylesheet {
 sub _collapse_inline_styles {
   my ($self,$params) = @_;
 
+  $self->_check_object();
+
   #check if we were passed a node to recurse from, otherwise use the root of the tree
-  my $content = exists($$params{content}) ? $$params{content} : [$self->_get_tree()];
+  my $content = exists($$params{content}) ? $$params{content} : [$self->_html_tree()];
 
   foreach my $i (@{$content}) {
 
@@ -531,8 +658,12 @@ sub _collapse_inline_styles {
 
     if ($i->attr('style')) {
 
+      #flatten out the styles currently in place on this entity
+      my $existing_styles = $i->attr('style');
+      $existing_styles =~ tr/\n\t/  /;
+
       # hold the property value pairs
-      my $styles = $self->_split({style => $i->attr('style')});
+      my $styles = $self->_split({style => $existing_styles});
 
       my $collapsed_style = '';
       foreach my $key (sort keys %{$styles}) { #sort for predictable output
@@ -556,58 +687,20 @@ sub _collapse_inline_styles {
   }
 }
 
-sub _get_tree {
+sub _init_query {
   my ($self,$params) = @_;
 
-  return $self->{html_tree};
-}
+  $self->_check_object();
 
-sub _get_query {
-  my ($self,$params) = @_;
+  $self->{query} = HTML::Query->new($self->_html_tree());
 
-  if (exists $$params{tree}) {
-    $self->{query} = HTML::Query->new($self->_get_tree());
-  }
-
-  return $self->{query};
-}
-
-sub _get_css {
-  my ($self,$params) = @_;
-
-  return $self->{css};
-}
-
-sub _strip_attrs {
-  my ($self,$params) = @_;
-
-  return $self->{strip_attrs};
-}
-
-sub _leave_style {
-  my ($self,$params) = @_;
-
-  return $self->{leave_style};
-}
-
-sub _set_html {
-  my ($self,$params) = @_;
-
-  $self->{html} = $$params{html};
-
-  return $self->{html};
-}
-
-sub _set_stylesheet {
-  my ($self,$params) = @_;
-
-  $self->{stylesheet} = $$params{stylesheet};
-
-  return $self->{stylesheet};
+  return();
 }
 
 sub _expand {
   my ($self, $params) = @_;
+
+  $self->_check_object();
 
   my $properties = $$params{properties};
   my $inline = '';
@@ -620,13 +713,16 @@ sub _expand {
 
 sub _split {
   my ($self, $params) = @_;
+
+  $self->_check_object();
+
   my $style = $params->{style};
   my %split;
 
   # Split into properties
   foreach ( grep { /\S/ } split /\;/, $style ) {
     unless ( /^\s*([\w._-]+)\s*:\s*(.*?)\s*$/ ) {
-      croak "Invalid or unexpected property '$_' in style '$style'";
+      $self->_report_warning({ info => "aInvalid or unexpected property '$_' in style '$style'"});
     }
     $split{lc $1} = $2;
   }
