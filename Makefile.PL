@@ -1,4 +1,4 @@
-# $Id: Makefile.PL 2892 2010-10-28 22:39:23Z kamelkev $
+# $Id: Makefile.PL 3218 2011-05-18 16:32:58Z khera $
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
@@ -6,14 +6,14 @@ WriteMakefile(
     PMLIBDIRS => [ 'lib' ],
     PREREQ_PM => {
 	'HTML::TreeBuilder' => 0,
-        'CSS::Simple' => 2874,
+        'CSS::Simple' => 3211,
         'HTML::Query' => 0.07,
         'LWP' => 0,
         'URI' => 0,
         'Test::More' => 0
     },
     dist => {
-	PREOP => 'pod2text lib/CSS/Inliner.pm > README',
+	PREOP => 'pod2text lib/CSS/Inliner.pm > README; ln -f README $(DISTVNAME)/README',
     },
     'test' => {
 	TESTS => join(' ', map { glob } qw( t/*.t )),

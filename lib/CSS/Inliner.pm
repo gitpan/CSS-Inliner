@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 3209 2011-05-11 23:06:57Z kamelkev $
+# $Id: Inliner.pm 3219 2011-05-18 16:37:09Z khera $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3209 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3219 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -736,7 +736,8 @@ sub _split {
 
 =head1 Sponsor
 
-This code has been developed under sponsorship of MailerMailer LLC, http://www.mailermailer.com/
+This code has been developed under sponsorship of MailerMailer LLC,
+http://www.mailermailer.com/
 
 =head1 AUTHOR
 
