@@ -30,6 +30,10 @@ CONSTRUCTOR
        leave_style (optional). Leave style/link tags alone within <head>
        during inlining
 
+       post_fetch_filter (optional). Execute a coderef filter on fetched
+       content. Useful for protecting mailmerge tags while fetching. You are
+       responsible for restoring any tags in your own code
+
 METHODS
     fetch_file( params )
             Fetches a remote HTML file that supposedly contains both HTML
