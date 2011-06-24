@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 3275 2011-06-20 03:48:36Z kamelkev $
+# $Id: Inliner.pm 3283 2011-06-24 00:51:16Z kamelkev $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3275 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3283 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -449,7 +449,7 @@ sub _fetch_url {
 
   # Create a user agent object
   my $ua = LWP::UserAgent->new;
-  $ua->agent("CSS::Inliner" . $ua->agent);
+  $ua->agent("Mozilla/4.0" . $ua->agent); # masquerade as Mozilla/4.0
   $ua->protocols_allowed( ['http','https'] );
 
   # Create a request     
