@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CSS-Inliner
-version:            3286
+version:            3295
 abstract:           Library for converting CSS <style> blocks to inline styles
 author:
     - Kevin Kamel <kamelkev@mailermailer.com>
@@ -11,7 +11,6 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
-    CSS::Simple:        3211
     HTML::Query:        0.07
     HTML::TreeBuilder:  0
     LWP:                0
