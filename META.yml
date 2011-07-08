@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CSS-Inliner
-version:            3283
+version:            3286
 abstract:           Library for converting CSS <style> blocks to inline styles
 author:
     - Kevin Kamel <kamelkev@mailermailer.com>
