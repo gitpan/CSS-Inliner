@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 3295 2011-07-08 15:21:01Z khera $
+# $Id: Inliner.pm 3362 2011-09-22 19:57:38Z kamelkev $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 #
@@ -11,7 +11,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3295 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3362 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -453,7 +453,7 @@ sub _fetch_url {
 
   # Create a user agent object
   my $ua = LWP::UserAgent->new;
-  $ua->agent("Mozilla/4.0" . $ua->agent); # masquerade as Mozilla/4.0
+  $ua->agent("Mozilla/4.0 (" . $ua->agent .")"); # masquerade as Mozilla/4.0
   $ua->protocols_allowed( ['http','https'] );
 
   # Create a request
@@ -736,7 +736,7 @@ sub _split {
   # Split into properties
   foreach ( grep { /\S/ } split /\;/, $style ) {
     unless ( /^\s*([\w._-]+)\s*:\s*(.*?)\s*$/ ) {
-      $self->_report_warning({ info => "aInvalid or unexpected property '$_' in style '$style'"});
+      $self->_report_warning({ info => "Invalid or unexpected property '$_' in style '$style'"});
     }
     $split{lc $1} = $2;
   }
