@@ -1,9 +1,6 @@
-# $Id: Inliner.pm 3362 2011-09-22 19:57:38Z kamelkev $
+# $Id: Inliner.pm 3385 2011-10-13 21:37:42Z kamelkev $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
-#
-# Based loosely on the TamTam RubyForge project:
-# http://tamtam.rubyforge.org/
 
 package CSS::Inliner;
 
@@ -11,7 +8,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3362 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3385 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -764,7 +761,7 @@ Michael Peters <C<wonko@cpan.org>>
 
 =head1 LICENSE
 
-This module is Copyright 2010 Khera Communications, Inc.  It is
+This module is Copyright 2011 Khera Communications, Inc.  It is
 licensed under the same terms as Perl itself.
 
 =cut
