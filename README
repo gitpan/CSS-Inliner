@@ -37,8 +37,9 @@ CONSTRUCTOR
 METHODS
     fetch_file( params )
             Fetches a remote HTML file that supposedly contains both HTML
-            and a style declaration. It subsequently calls the read() method
-            automatically.
+            and a style declaration, properly tags the data with the proper
+            characterset as provided by the remote webserver (if any).
+            Subsequently calls the read() method automatically.
 
             This method expands all relative urls, as well as fully expands
             the stylesheet reference within the document.
@@ -58,9 +59,15 @@ METHODS
 
             $self->read_file({filename => 'myfile.html'});
 
+            Additionally you can specify the character encoding within the
+            file, for example:
+
+            $self->read_file({filename => 'myfile.html', charset =>
+            'utf8'});
+
     read( params )
-            Reads html data and parses it. The intermediate data is stored
-            in class variables.
+            Reads passed html data and parses it. The intermediate data is
+            stored in class variables.
 
             The <style> block is ripped out of the html here, and stored
             separately. Class/ID/Names used in the markup are left alone.
@@ -69,6 +76,10 @@ METHODS
             scalar html data. For example:
 
             $self->read({html => $html});
+
+            NOTE: You are required to pass a properly encoded perl reference
+            to the html data. This method does *not* do the dirty work of
+            encoding the html as utf8 - do that before calling this method.
 
     inlinify()
             Processes the html data that was entered through either 'read'
