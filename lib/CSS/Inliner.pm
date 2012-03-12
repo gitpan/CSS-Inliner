@@ -1,4 +1,4 @@
-# $Id: Inliner.pm 3671 2012-03-10 01:33:23Z kamelkev $
+# $Id: Inliner.pm 3674 2012-03-12 19:09:01Z kamelkev $
 #
 # Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
 
@@ -8,7 +8,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3671 $ =~ /(\d+)/;
+$VERSION = sprintf "%d", q$Revision: 3674 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -605,7 +605,7 @@ sub _expand_stylesheet {
   my @style = $head->look_down('_tag','style','href',qr/^https?:\/\//);
 
   #get the <link> nodes underneath the head section - that's the only place stylesheets are allowed to live
-  my @link = $head->look_down('_tag','link','rel','stylesheet');
+  my @link = $head->look_down('_tag','link','rel','stylesheet','href',qr/./);
 
   my @stylesheets = (@style,@link);
 
@@ -653,7 +653,7 @@ sub _parse_stylesheet {
   my @style = $head->look_down('_tag','style','type','text/css');
 
   #get the <link> nodes underneath the head section - there should be *none* at this step in the process
-  my @link = $head->look_down('_tag','link','rel','stylesheet','type','text/css');
+  my @link = $head->look_down('_tag','link','rel','stylesheet','type','text/css','href',qr/./);
 
   if (scalar @link) {
     die 'Inliner only supports link tags if you fetch the document from a remote source';
