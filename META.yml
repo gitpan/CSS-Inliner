@@ -1,26 +1,26 @@
---- #YAML:1.0
-name:               CSS-Inliner
-version:            3674
-abstract:           Library for converting CSS <style> blocks to inline styles
+---
+abstract: 'Library for converting CSS <style> blocks to inline styles'
 author:
-    - Kevin Kamel <kamelkev@mailermailer.com>
-license:            perl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'Kevin Kamel <kamelkev@mailermailer.com>'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    HTML::Query:        0.07
-    HTML::TreeBuilder:  4.2
-    LWP:                0
-    Test::More:         0
-    URI:                0
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.131560'
+license: perl
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: CSS-Inliner
+no_index:
+  directory:
+    - t
+    - inc
+requires:
+  HTML::Query: 0.08
+  HTML::TreeBuilder: 4.2
+  LWP: 0
+  Test::More: 0
+  URI: 0
+version: 3901

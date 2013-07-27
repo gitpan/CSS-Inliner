@@ -25,10 +25,12 @@ t/html/linktest_result.html
 t/linebreaktest.t
 t/linktest.t
 t/ordering.t
+t/psuedo.t
 t/Parser/create.t
 t/Parser/fail.t
 t/Parser/basic.t
 t/Parser/hacks.t
 t/pod.t
 t/specificity.t
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)

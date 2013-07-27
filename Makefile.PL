@@ -1,4 +1,3 @@
-# $Id: Makefile.PL 3384 2011-10-13 21:35:34Z kamelkev $
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
@@ -6,7 +5,7 @@ WriteMakefile(
     PMLIBDIRS => [ 'lib' ],
     PREREQ_PM => {
 	'HTML::TreeBuilder' => 4.2,
-        'HTML::Query' => 0.07,
+        'HTML::Query' => 0.08,
         'LWP' => 0,
         'URI' => 0,
         'Test::More' => 0
@@ -14,7 +13,7 @@ WriteMakefile(
     'test' => {
 	TESTS => join(' ', map { glob } qw( t/*.t )),
     },
-    VERSION_FROM => 'lib/CSS/Inliner.pm',
+    VERSION => 3901,
     AUTHOR => 'Kevin Kamel <kamelkev@mailermailer.com>',
     ABSTRACT => 'Library for converting CSS <style> blocks to inline styles',
     LICENSE => 'perl',

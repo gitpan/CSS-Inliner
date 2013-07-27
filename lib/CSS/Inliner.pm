@@ -1,14 +1,7 @@
-# $Id: Inliner.pm 3674 2012-03-12 19:09:01Z kamelkev $
-#
-# Copyright 2011 MailerMailer, LLC - http://www.mailermailer.com
-
 package CSS::Inliner;
 
 use strict;
 use warnings;
-
-use vars qw($VERSION);
-$VERSION = sprintf "%d", q$Revision: 3674 $ =~ /(\d+)/;
 
 use Carp;
 
@@ -41,13 +34,13 @@ print $inliner->inlinify();
 
 Library for converting CSS style blocks into inline styles in an HTML
 document.  Specifically this is intended for the ease of generating
-HTML emails.  This is useful as even in 2009 Gmail and Hotmail don't
+HTML emails.  This is useful as even in 2013 Gmail and Hotmail don't
 support top level <style> declarations.
 
 =cut
 
 BEGIN {
-  my $members = ['stylesheet','css','html','html_tree','query','strip_attrs','leave_style','warns_as_errors','content_warnings', 'post_fetch_filter'];
+  my $members = ['stylesheet','css','html','html_tree','query','strip_attrs','leave_style','warns_as_errors','content_warnings'];
 
   #generate all the getter/setter we need
   foreach my $member (@{$members}) {
@@ -82,8 +75,6 @@ B<strip_attrs> (optional). Remove all "id" and "class" attributes during inlinin
 
 B<leave_style> (optional). Leave style/link tags alone within <head> during inlining
 
-B<post_fetch_filter> (optional). Execute a coderef filter on fetched content. Useful for protecting mailmerge tags while fetching. You are responsible for restoring any tags in your own code
-
 =back
 
 =cut
@@ -103,7 +94,6 @@ sub new {
     strip_attrs => (defined($$params{strip_attrs}) && $$params{strip_attrs}) ? 1 : 0,
     leave_style => (defined($$params{leave_style}) && $$params{leave_style}) ? 1 : 0,
     warns_as_errors => (defined($$params{warns_as_errors}) && $$params{warns_as_errors}) ? 1 : 0,
-    post_fetch_filter => (defined($$params{post_fetch_filter}) && ref($$params{post_fetch_filter}) eq 'CODE') ? $$params{post_fetch_filter} : undef
   };
 
   bless $self, $class;
@@ -281,8 +271,8 @@ sub inlinify {
       my $selector = $$entry{selector};
       my $properties = $$entry{properties};
 
-      #skip over psuedo selectors, they are not mappable the same
-      if ($selector =~ /[\w\*]:(?:(active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter|first-child|first-child))\b/io) {
+      #skip over the following psuedo selectors, these particular ones are not inlineable
+      if ($selector =~ /(?:^|[\w\*]):(?:(active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter))\b/io) {
         $self->_report_warning({ info => "The pseudo-class ':$1' cannot be supported inline" });
         next;
       }
@@ -514,10 +504,6 @@ sub _fetch_html {
   $self->_check_object();
 
   my ($content,$baseref) = $self->_fetch_url({ url => $$params{url} });
-
-  if (my $post_fetch_filter = $self->_post_fetch_filter()) {
-    $content = &$post_fetch_filter({ html => $content });
-  }
 
   # Build the HTML tree
   my $doc = HTML::TreeBuilder->new();
@@ -787,7 +773,7 @@ Michael Peters <C<wonko@cpan.org>>
 
 =head1 LICENSE
 
-This module is Copyright 2011 Khera Communications, Inc.  It is
+This module is Copyright 2013 Khera Communications, Inc.  It is
 licensed under the same terms as Perl itself.
 
 =cut
