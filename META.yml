@@ -19,8 +19,8 @@ no_index:
     - inc
 requires:
   HTML::Query: 0.08
-  HTML::TreeBuilder: 4.2
+  HTML::TreeBuilder: 5.03
   LWP: 0
   Test::More: 0
   URI: 0
-version: 3932
+version: 3933
