@@ -2,17 +2,17 @@ package CSS::Inliner;
 use strict;
 use warnings;
 
-our $VERSION = '3913';
+our $VERSION = '3932';
 
 use Carp;
 
-use HTML::TreeBuilder;
-use HTML::Query 'query';
+use Encode;
 use LWP::UserAgent;
 use URI;
 
-use Encode;
+use HTML::Query 'query';
 
+use CSS::Inliner::TreeBuilder;
 use CSS::Inliner::Parser;
 
 =pod
@@ -41,7 +41,7 @@ support top level <style> declarations.
 =cut
 
 BEGIN {
-  my $members = ['stylesheet','css','html','html_tree','query','strip_attrs','leave_style','warns_as_errors','content_warnings'];
+  my $members = ['stylesheet','css','html','html_tree','query','strip_attrs','relaxed','leave_style','warns_as_errors','content_warnings'];
 
   #generate all the getter/setter we need
   foreach my $member (@{$members}) {
@@ -61,22 +61,28 @@ BEGIN {
 
 =pod
 
-=head1 CONSTRUCTOR
+=head1 METHODS
 
-=over 3
+=over
 
-=item new ([ OPTIONS ])
+=item new
+
+=item
 
 Instantiates the Inliner object. Sets up class variables that are used
 during file parsing/processing. Possible options are:
 
-B<html_tree> (optional). Pass in a custom instance of HTML::Treebuilder
+html_tree - (optional) Pass in a fresh unparsed instance of HTML::Treebuilder
 
-B<strip_attrs> (optional). Remove all "id" and "class" attributes during inlining
+NOTE: Any passed references to HTML::TreeBuilder will be substantially altered by passing it in here...
 
-B<leave_style> (optional). Leave style/link tags alone within <head> during inlining
+strip_attrs - (optional) Remove all "id" and "class" attributes during inlining
 
-=back
+leave_style - (optional) Leave style/link tags alone within <head> during inlining
+
+relaxed - (optional) Relaxed HTML parsing which will attempt to interpret non-HTML4 documents.
+
+NOTE: This argument is not compatible with passing an html_tree.
 
 =cut
 
@@ -85,36 +91,51 @@ sub new {
 
   my $class = ref($proto) || $proto;
 
+  # passed in html_tree argument must be of correct type
+  # TODO: make sure tree has no content already
+  if (defined $$params{html_tree} && $$params{html_tree} && ref $$params{html_tree} ne 'HTML::TreeBuilder') {
+    croak 'Incompatible argument passed to new: "html_tree"';
+  }
+
+  # check to make sure caller is not trying to pass both an html_tree and setting relaxed flag
+  # relaxed flag requires our own internal TreeBuilder, not HTML::TreeBuilder
+  if (defined $$params{html_tree} && $$params{html_tree} && defined $$params{relaxed} && $$params{relaxed}) {
+    croak 'Incompatible argument passed to new: "html_tree"';
+  }
+
   my $self = {
     stylesheet => undef,
-    css => CSS::Inliner::Parser->new({ warns_as_errors => $$params{warns_as_errors}}),
+    css => CSS::Inliner::Parser->new({ warns_as_errors => $$params{warns_as_errors} }),
     html => undef,
-    html_tree => $$params{html_tree} || HTML::TreeBuilder->new(),
+    html_tree => defined($$params{html_tree}) ? $$params{html_tree} : CSS::Inliner::TreeBuilder->new(),
     query => undef,
-    content_warnings => undef,
+    content_warnings => {},
     strip_attrs => (defined($$params{strip_attrs}) && $$params{strip_attrs}) ? 1 : 0,
+    relaxed => (defined($$params{relaxed}) && $$params{relaxed}) ? 1 : 0,
     leave_style => (defined($$params{leave_style}) && $$params{leave_style}) ? 1 : 0,
     warns_as_errors => (defined($$params{warns_as_errors}) && $$params{warns_as_errors}) ? 1 : 0,
   };
 
   bless $self, $class;
+
+  # configure tree
+  $self->_html_tree->store_comments(1);
+  if ($self->_relaxed()) {
+    $self->_html_tree->ignore_unknown(0);
+    $self->_html_tree->implicit_tags(0);
+  }
+
   return $self;
 }
 
-=head1 METHODS
-
-=cut
-
 =pod
 
-=over 8
-
-=item fetch_file( params )
+=item fetch_file
 
 Fetches a remote HTML file that supposedly contains both HTML and a
 style declaration, properly tags the data with the proper characterset
 as provided by the remote webserver (if any). Subsequently calls the
-read() method automatically.
+read method automatically.
 
 This method expands all relative urls, as well as fully expands the
 stylesheet reference within the document.
@@ -132,18 +153,18 @@ sub fetch_file {
   $self->_check_object();
 
   unless ($params && $$params{url}) {
-    croak "You must pass in hash params that contain a url argument";
+    croak 'You must pass in hash params that contain a url argument';
   }
 
   #fetch a absolutized version of the html
-  my $html = $self->_fetch_html({ url => $$params{url}});
+  my $html = $self->_fetch_html({ url => $$params{url} });
 
   $self->read({html => $html});
 
   return();
 }
 
-=item read_file( params )
+=item read_file
 
 Opens and reads an HTML file that supposedly contains both HTML and a
 style declaration.  It subsequently calls the read() method
@@ -167,10 +188,10 @@ sub read_file {
   $self->_check_object();
 
   unless ($params && $$params{filename}) {
-    croak "You must pass in hash params that contain a filename argument";
+    croak 'You must pass in hash params that contain a filename argument';
   }
 
-  open FILE, "<", $$params{filename} or die $!;
+  open FILE, "<", $$params{filename} or croak $!;
   my $content = do { local( $/ ) ; <FILE> } ;
 
   my $html;
@@ -188,7 +209,7 @@ sub read_file {
 
 =pod
 
-=item read( params )
+=item read
 
 Reads passed html data and parses it.  The intermediate data is stored in
 class variables.
@@ -213,11 +234,10 @@ sub read {
   $self->_check_object();
 
   unless ($params && $$params{html}) {
-    croak "You must pass in hash params that contains html data";
+    croak 'You must pass in hash params that contains html data';
   }
 
-  $self->_html_tree()->store_comments(1);
-  $self->_html_tree()->parse($$params{html});
+  $self->_html_tree->parse_content($$params{html});
 
   $self->_init_query();
 
@@ -233,7 +253,7 @@ sub read {
 
 =pod
 
-=item inlinify()
+=item inlinify
 
 Processes the html data that was entered through either 'read' or
 'read_file', returns a scalar that contains a composite chunk of html
@@ -249,25 +269,27 @@ sub inlinify {
   $self->_content_warnings({}); # overwrite any existing warnings
 
   unless ($self->_html() && $self->_html_tree()) {
-    croak "You must instantiate and read in your content before inlinifying";
+    croak 'You must instantiate and read in your content before inlinifying';
   }
+
+  # perform a check to see how bad this html is...
+  $self->_validate_html({ html => $self->_html() });
 
   my $html;
   if (defined $self->_css()) {
     #parse and store the stylesheet as a hash object
 
-    $self->_css()->read({css => $self->_stylesheet()});
+    $self->_css->read({css => $self->_stylesheet()});
 
-    my @css_warnings = @{$self->_css()->content_warnings()};
-
-    my %content_warns = map { $_ => 1} @css_warnings;
-
-    $self->_content_warnings(\%content_warns);
+    my @css_warnings = @{$self->_css->content_warnings()};
+    foreach my $css_warning (@css_warnings) {
+      $self->_report_warning({ info => $css_warning });
+    }
 
     my %matched_elements;
     my $count = 0;
 
-    foreach my $entry (@{$self->_css()->get_entries()}) {
+    foreach my $entry (@{$self->_css->get_entries()}) {
 
       my $selector = $$entry{selector};
       my $properties = $$entry{properties};
@@ -348,7 +370,7 @@ sub inlinify {
     # 3rd argument overrides the optional end tag, which for HTML::Element
     # is just p, li, dt, dd - tags we want terminated for our purposes
 
-    $html = $self->_html_tree()->as_HTML(q@^\n\r\t !\#\$%\(-;=?-~'@,' ',{});
+    $html = $self->_html_tree->as_HTML(q@^\n\r\t !\#\$%\(-;=?-~'@,' ',{});
   }
   else {
     $html = $self->{html};
@@ -359,7 +381,7 @@ sub inlinify {
 
 =pod
 
-=item query()
+=item query
 
 Given a particular selector return back the applicable styles
 
@@ -374,12 +396,12 @@ sub query {
     $self->_init_query();
   }
 
-  return $self->_query()->query($$params{selector});
+  return $self->_query->query($$params{selector});
 }
 
 =pod
 
-=item specificity()
+=item specificity
 
 Given a particular selector return back the associated selectivity
 
@@ -394,17 +416,17 @@ sub specificity {
     $self->_init_query();
   }
 
-  return $self->_query()->get_specificity($$params{selector});
+  return $self->_query->get_specificity($$params{selector});
 }
 
 =pod
 
-=item content_warnings()
+=item content_warnings
 
 Return back any warnings thrown while inlining a given block of content.
 
 Note: content warnings are initialized at inlining time, not at read time. In
-order to receive back content feedback you must perform inlinify() first
+order to receive back content feedback you must perform inlinify first
 
 =back
 
@@ -432,7 +454,7 @@ sub _check_object {
   my ($self, $params) = @_;
 
   unless (ref $self) {
-   croak "You must instantiate this class in order to properly use it";
+   croak 'You must instantiate this class in order to properly use it';
   }
 
   return ();
@@ -461,7 +483,7 @@ sub _fetch_url {
 
   # Create a user agent object
   my $ua = LWP::UserAgent->new;
-  $ua->agent("Mozilla/4.0"); # masquerade as Mozilla/4.0
+  $ua->agent('Mozilla/4.0'); # masquerade as Mozilla/4.0
   $ua->protocols_allowed( ['http','https'] );
 
   # Create a request
@@ -474,12 +496,12 @@ sub _fetch_url {
 
   # if not successful
   if (!$res->is_success()) {
-    die 'There was an error in fetching the document for '.$uri.' : '.$res->message;
+    croak 'There was an error in fetching the document for ' . $uri . ' : ' . $res->message;
   }
 
   # Is it a HTML document
   if ($res->content_type ne 'text/html' && $res->content_type ne 'text/css') {
-    die 'The web site address you entered is not an HTML document.';
+    croak 'The web site address you entered is not an HTML document.';
   }
 
   my $content;
@@ -489,9 +511,6 @@ sub _fetch_url {
   else {
     $content = $res->content || ''; # best we can do, no encoding given
   }
-
-  # remove the <HTML> tag pair as parser will add it again.
-  $content =~ s|</?html>||gi;
 
   # Expand all URLs to absolute ones
   my $baseref = $res->base;
@@ -504,13 +523,17 @@ sub _fetch_html {
 
   $self->_check_object();
 
-  my ($content,$baseref) = $self->_fetch_url({ url => $$params{url} });
+  my $url = ($$params{url} =~ m/^https?:\/\//) ? $$params{url} : 'http://' . $$params{url};
 
-  # Build the HTML tree
-  my $doc = HTML::TreeBuilder->new();
+  my ($content,$baseref) = $self->_fetch_url({ url => $url });
+
+  # Build "relaxed" HTML tree using internal treebuilder - we want to return html that is as
+  # close to the original as possible. We can more strictly parse this later if necessary
+  my $doc = CSS::Inliner::TreeBuilder->new();
   $doc->store_comments(1);
-  $doc->parse($content);
-  $doc->eof;
+  $doc->ignore_unknown(0);
+  $doc->implicit_tags(0);
+  $doc->parse_content($content);
 
   # Change relative links to absolute links
   $self->_changelink_relative({ content => $doc->content, baseref => $baseref});
@@ -587,21 +610,34 @@ sub _expand_stylesheet {
 
   my $stylesheets = ();
 
-  my $head = $doc->look_down("_tag", "head"); # there should only be one
+  my (@style,@link);
+  if ($self->_relaxed()) {
+    #get the <style> nodes
+    @style = $doc->look_down('_tag','style');
 
-  #get the external <style> nodes underneath the head section - that's the only place stylesheets are allowed to live
-  my @style = $head->look_down('_tag','style');
+    #get the <link> nodes
+    @link = $doc->look_down('_tag','link','href',qr/./);
+  }
+  else {
+    #get the head section of the document
+    my $head = $doc->look_down('_tag', 'head'); # there should only be one
 
-  #get the <link> nodes underneath the head section - that's the only place stylesheets are allowed to live
-  my @link = $head->look_down('_tag','link','rel','stylesheet','href',qr/./);
+    #get the <style> nodes underneath the head section - that's the only place stylesheets are allowed to live
+    @style = $head->look_down('_tag','style');
+
+    #get the <link> nodes underneath the head section - there should be *none* at this step in the process
+    @link = $head->look_down('_tag','link','href',qr/./);
+  }
 
   foreach my $i (@link) {
+    next unless ($i->attr('rel') // '') eq 'stylesheet' || ($i->attr('type') // '') eq 'text/css' || ($i->attr('href') // '') =~ m/.css$/;
+
     my ($content,$baseref) = $self->_fetch_url({ url => $i->attr('href') });
 
     #absolutized the assetts within the stylesheet that are relative
     $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({prefix => $1, url => $2, base => $baseref})/exsgi;
 
-    my $stylesheet = HTML::Element->new('style', type => "text/css", rel=> "stylesheet");
+    my $stylesheet = HTML::Element->new('style', type => 'text/css', rel=> 'stylesheet');
     $stylesheet->push_content($content);
 
     $i->replace_with($stylesheet);
@@ -617,11 +653,73 @@ sub _expand_stylesheet {
     # absolutize the assets within the stylesheet that are relative
     $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({prefix => $1, url => $2, base => $baseref})/exsgi;
 
-    my $stylesheet = HTML::Element->new('style', type => "text/css", rel=> "stylesheet");
+    my $stylesheet = HTML::Element->new('style', type => 'text/css', rel=> 'stylesheet');
     $stylesheet->push_content($content);
 
     $i->replace_with($stylesheet);
+  }
 
+  return();
+}
+
+sub _validate_html {
+  my ($self,$params) = @_;
+
+  my $validator_tree = new CSS::Inliner::TreeBuilder();
+  $validator_tree->ignore_unknown(0);
+  $validator_tree->implicit_tags(0);
+  $validator_tree->parse_content($$params{html});
+
+  if ($self->_relaxed()) {
+    # TODO: print out any html issues that would cause the relaxed parsing to modify the document or might cause
+    # a rendering problem of some type
+    #
+    # Currently there are no known issues, but when found they would go here
+  }
+  else {
+    # The following are inconsistencies that can easily be found by scanning our document using the internal Treebuilder
+    # The standard TreeBuilder actually alters the document in an attempt to create something "valid", but by doing so
+    # all sorts of weird things can happen, so we add them to the warnings report so the caller knows what's going on.
+
+    # count up the major structural components of the document
+    my @html_nodes = $validator_tree->look_down('_tag', 'html');
+    my @head_nodes = $validator_tree->look_down('_tag', 'head');
+    my @body_nodes = $validator_tree->look_down('_tag', 'body');
+
+    # we should have exactly 2 root nodes, the treebuilder inserted one and the nested one from the document...
+    if (scalar @html_nodes == 0) {
+      $self->_report_warning({ info => 'Unexpected absence of html root node, force inserted' });
+    }
+    elsif (scalar @html_nodes > 1) {
+      $self->_report_warning({ info => 'Unexpected spurious html root node(s) found within referenced document, coalesced' });
+    }
+
+    if (scalar @head_nodes > 1) {
+      $self->_report_warning({ info => 'Unexpected spurious head node(s) found within referenced document, coalesced' });
+    }
+
+    if (scalar @body_nodes > 1) {
+      $self->_report_warning({ info => 'Unexpected spurious body node(s) found within referenced document, coalesced' });
+    }
+
+    # get the <link> nodes, we really should not be finding these at this step in the process
+    # this is not a problem while doing relaxed parsing... but the standard parse can do weird things here
+    my @link = $validator_tree->look_down('_tag','link','rel','stylesheet','type','text/css','href',qr/./);
+
+    if (scalar @link) {
+      $self->_report_warning({ info => 'Unexpected reference to remote stylesheet skipped' });
+    }
+
+    my $body = $self->_html_tree->look_down('_tag', 'body');
+
+    if ($body) {
+      # located spurious <style> tags that won't be handled
+      my @spurious_style = $body->look_down('_tag','style','type','text/css');
+
+      if (scalar @spurious_style) {
+        $self->_report_warning({ info => 'Unexpected reference to stylesheet within document body skipped' });
+      }
+    }
   }
 
   return();
@@ -634,21 +732,13 @@ sub _parse_stylesheet {
 
   my $stylesheet = '';
 
-  #get the head section of the document
-  my $head = $self->_html_tree()->look_down("_tag", "head"); # there should only be one
+  # figure out where to look for styles
+  my $stylesheet_root = $self->_relaxed() ? $self->_html_tree() : $self->_html_tree->look_down('_tag', 'head');
 
-  #get the <style> nodes underneath the head section - that's the only place stylesheets are allowed to live
-  my @style = $head->look_down('_tag','style','type','text/css');
-
-  #get the <link> nodes underneath the head section - there should be *none* at this step in the process
-  my @link = $head->look_down('_tag','link','rel','stylesheet','type','text/css','href',qr/./);
-
-  if (scalar @link) {
-    die 'Inliner only supports link tags if you fetch the document from a remote source';
-  }
+  # get the <style> nodes
+  my @style = $stylesheet_root->look_down('_tag','style','type','text/css');
 
   foreach my $i (@style) {
-
     #process this node if the html media type is screen, all or undefined (which defaults to screen)
     if (($i->tag eq 'style') && (!$i->attr('media') || $i->attr('media') =~ m/\b(all|screen)\b/)) {
 
@@ -679,7 +769,7 @@ sub _collapse_inline_styles {
 
   foreach my $i (@{$content}) {
 
-    next unless (ref $i eq 'HTML::Element' || ref $i eq 'HTML::TreeBuilder');
+    next unless (ref $i && $i->isa('HTML::Element'));
 
     if ($i->attr('style')) {
 
@@ -766,12 +856,11 @@ http://www.mailermailer.com/
 
 =head1 AUTHOR
 
-Kevin Kamel <C<kamelkev@mailermailer.com>>
+Kevin Kamel <kamelkev@mailermailer.com>
 
 =head1 CONTRIBUTORS
 
-Vivek Khera <C<vivek@khera.org>>
-Michael Peters <C<wonko@cpan.org>>
+Vivek Khera <vivek@khera.org>, Michael Peters <wonko@cpan.org>
 
 =head1 LICENSE
 

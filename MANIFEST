@@ -1,6 +1,7 @@
 ChangeLog
 lib/CSS/Inliner.pm
 lib/CSS/Inliner/Parser.pm
+lib/CSS/Inliner/TreeBuilder.pm
 MANIFEST
 Makefile.PL
 README
@@ -9,14 +10,15 @@ t/advanced.t
 t/advanced_strip.t
 t/basic.t
 t/basic_comment.t
+t/basic_media.t
 t/basic_redeclare.t
 t/cascade.t
 t/css_url.t
 t/custom_html_tree.t
 t/embedded_style_block.t
 t/encoding.t
-t/fetch.perl
 t/fetch-filter.perl
+t/fetch.perl
 t/html/acidtest.html
 t/html/acidtest_result.html
 t/html/embedded_style.html
@@ -27,15 +29,21 @@ t/html/linebreaktest.html
 t/html/linebreaktest_result.html
 t/html/linktest.html
 t/html/linktest_result.html
+t/html/mediaquerytest.html
+t/html/mediaquerytest_result.html
+t/html/relaxed.html
+t/html/relaxed_result.html
 t/linebreaktest.t
 t/linktest.t
+t/mediaquery.t
 t/ordering.t
-t/psuedo.t
+t/Parser/basic.t
 t/Parser/create.t
 t/Parser/fail.t
-t/Parser/basic.t
 t/Parser/hacks.t
 t/pod.t
+t/psuedo.t
+t/relaxed.t
 t/specificity.t
 META.yml                                 Module YAML meta-data (added by MakeMaker)
 META.json                                Module JSON meta-data (added by MakeMaker)
