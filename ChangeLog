@@ -173,3 +173,12 @@
 	* Fix issue whereby malformed @media rules could cause an infinite loop within the Parser
 	* Attempt to fix issue whereby moder perl // defined test still not working perl
 	* Attempt to fix issue whereby Makefile will not properly generate the latest README file
+
+3944	2013-03-24	Kevin Kamel <kamelkev@mailermailer.com>
+	* Add generalized at-rule support to CSS::Inliner::Parser, @media support is reimplemented
+	* Provide granularity for retrieving rules by rule name, exa qualified, @import, @media, etc
+	* Attempt to improve whitespace handling when printing out a stylesheet from CSS::Inliner::Parser
+        * Abandon using tabs in written out css, update tests to reflect the change
+	* Add support for including at-rule when printing out a stylesheet from CSS::Inliner::Parser
+        * Add tests for ensuring that at-rule are working
+	* Fix up code style whitespace issues, add associated tests for checking it

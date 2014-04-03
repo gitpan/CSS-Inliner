@@ -2,7 +2,7 @@ package CSS::Inliner;
 use strict;
 use warnings;
 
-our $VERSION = '3936';
+our $VERSION = '3944';
 
 use Carp;
 
@@ -27,7 +27,7 @@ use Inliner;
 
 my $inliner = new Inliner();
 
-$inliner->read_file({filename => 'myfile.html'});
+$inliner->read_file({ filename => 'myfile.html' });
 
 print $inliner->inlinify();
 
@@ -157,7 +157,7 @@ sub fetch_file {
   #fetch a absolutized version of the html
   my $html = $self->_fetch_html({ url => $$params{url} });
 
-  $self->read({html => $html});
+  $self->read({ html => $html });
 
   return();
 }
@@ -171,12 +171,12 @@ automatically.
 This method requires you to pass in a params hash that contains a
 filename argument. For example:
 
-$self->read_file({filename => 'myfile.html'});
+$self->read_file({ filename => 'myfile.html' });
 
 Additionally you can specify the character encoding within the file, for
 example:
 
-$self->read_file({filename => 'myfile.html', charset => 'utf8'});
+$self->read_file({ filename => 'myfile.html', charset => 'utf8' });
 
 =cut
 
@@ -200,7 +200,7 @@ sub read_file {
     $html = $content; # best we can do, no encoding specified
   }
 
-  $self->read({html => $html});
+  $self->read({ html => $html });
 
   return();
 }
@@ -218,7 +218,7 @@ separately. Class/ID/Names used in the markup are left alone.
 This method requires you to pass in a params hash that contains scalar
 html data. For example:
 
-$self->read({html => $html});
+$self->read({ html => $html });
 
 NOTE: You are required to pass a properly encoded perl reference to the
 html data. This method does *not* do the dirty work of encoding the html
@@ -277,7 +277,7 @@ sub inlinify {
   if (defined $self->_css()) {
     #parse and store the stylesheet as a hash object
 
-    $self->_css->read({css => $self->_stylesheet()});
+    $self->_css->read({ css => $self->_stylesheet() });
 
     my @css_warnings = @{$self->_css->content_warnings()};
     foreach my $css_warning (@css_warnings) {
@@ -287,10 +287,11 @@ sub inlinify {
     my %matched_elements;
     my $count = 0;
 
-    foreach my $entry (@{$self->_css->get_entries()}) {
+    foreach my $entry (@{$self->_css->get_rules()}) {
+      next unless exists $$entry{selector} && $$entry{declarations};
 
       my $selector = $$entry{selector};
-      my $properties = $$entry{properties};
+      my $declarations = $$entry{declarations};
 
       #skip over the following psuedo selectors, these particular ones are not inlineable
       if ($selector =~ /(?:^|[\w\*]):(?:(active|focus|hover|link|visited|after|before|selection|target|first-line|first-letter))\b/io) {
@@ -317,7 +318,7 @@ sub inlinify {
       }
 
       # CSS rules cascade based on the specificity and order
-      my $specificity = $self->specificity({selector => $selector});
+      my $specificity = $self->specificity({ selector => $selector });
 
       #if an element matched a style within the document store the rule, the specificity
       #and the actually CSS attributes so we can inline it later
@@ -329,7 +330,7 @@ sub inlinify {
           element  => $element,
           specificity   => $specificity,
           position => $count,
-          css      => $properties
+          css      => $declarations
          );
 
         push(@{$matched_elements{$element->address()}}, \%match_info);
@@ -351,15 +352,15 @@ sub inlinify {
 
       # styles already inlined have greater precedence
       if (defined($element->attr('style'))) {
-        my $cur_style = $self->_split({style => $element->attr('style')});
+        my $cur_style = $self->_split({ style => $element->attr('style') });
         %new_style = (%new_style, %{$cur_style});
       }
 
-      $element->attr('style', $self->_expand({properties => \%new_style}));
+      $element->attr('style', $self->_expand({ declarations => \%new_style }));
     }
 
     #at this point we have a document that contains the expanded inlined stylesheet
-    #BUT we need to collapse the properties to remove duplicate overridden styles
+    #BUT we need to collapse the declarations to remove duplicate overridden styles
     $self->_collapse_inline_styles();
 
     # The entities list is the do-not-encode string from HTML::Entities
@@ -534,7 +535,7 @@ sub _fetch_html {
   $doc->parse_content($content);
 
   # Change relative links to absolute links
-  $self->_changelink_relative({ content => $doc->content, baseref => $baseref});
+  $self->_changelink_relative({ content => $doc->content, baseref => $baseref });
 
   $self->_expand_stylesheet({ content => $doc, html_baseref => $baseref });
 
@@ -639,7 +640,7 @@ sub _expand_stylesheet {
     my ($content,$baseref) = $self->_fetch_url({ url => $i->attr('href') });
 
     #absolutized the assetts within the stylesheet that are relative
-    $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({prefix => $1, url => $2, base => $baseref})/exsgi;
+    $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({ prefix => $1, url => $2, base => $baseref })/exsgi;
 
     my $stylesheet = HTML::Element->new('style', type => 'text/css', rel=> 'stylesheet');
     $stylesheet->push_content($content);
@@ -655,7 +656,7 @@ sub _expand_stylesheet {
     my $content = join('',grep {! ref $_ } @content);
 
     # absolutize the assets within the stylesheet that are relative
-    $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({prefix => $1, url => $2, base => $baseref})/exsgi;
+    $content =~ s/(url\()["']?((?:(?!https?:\/\/)(?!\))[^"'])*)["']?(?=\))/$self->__fix_relative_url({ prefix => $1, url => $2, base => $baseref })/exsgi;
 
     my $stylesheet = HTML::Element->new('style', type => 'text/css', rel=> 'stylesheet');
     $stylesheet->push_content($content);
@@ -789,7 +790,7 @@ sub _collapse_inline_styles {
       $existing_styles =~ tr/\n\t/  /;
 
       # hold the property value pairs
-      my $styles = $self->_split({style => $existing_styles});
+      my $styles = $self->_split({ style => $existing_styles });
 
       my $collapsed_style = '';
       foreach my $key (sort keys %{$styles}) { #sort for predictable output
@@ -808,7 +809,7 @@ sub _collapse_inline_styles {
 
     # Recurse down tree
     if (defined $i->content) {
-      $self->_collapse_inline_styles({content => $i->content()});
+      $self->_collapse_inline_styles({ content => $i->content() });
     }
   }
 }
@@ -828,10 +829,10 @@ sub _expand {
 
   $self->_check_object();
 
-  my $properties = $$params{properties};
+  my $declarations = $$params{declarations};
   my $inline = '';
-  foreach my $key (keys %{$properties}) {
-    $inline .= $key . ':' . $$properties{$key} . ';';
+  foreach my $property (keys %{$declarations}) {
+    $inline .= $property . ':' . $$declarations{$property} . ';';
   }
 
   return $inline;
@@ -845,10 +846,10 @@ sub _split {
   my $style = $params->{style};
   my %split;
 
-  # Split into properties
+  # Split into properties/values
   foreach ( grep { /\S/ } split /\;/, $style ) {
     unless ( /^\s*([\w._-]+)\s*:\s*(.*?)\s*$/ ) {
-      $self->_report_warning({ info => "Invalid or unexpected property '$_' in style '$style'"});
+      $self->_report_warning({ info => "Invalid or unexpected property '$_' in style '$style'" });
     }
     $split{lc $1} = $2;
   }

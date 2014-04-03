@@ -9,28 +9,28 @@ use_ok('CSS::Inliner::Parser');
 
 my $css = <<END;
 .foo {
-	color: red;
+  color: red;
 }
 .bar {
-	color: blue;
-	font-weight: bold;
+  color: blue;
+  font-weight: bold;
 }
 .biz {
-	color: green;
-	font-size: 10px;
+  color: green;
+  font-size: 10px;
 }
 .foo {
-	color: red;
+  color: red;
 }
 .bar {
-	color: blue;
-	font-weight: bold;
+  color: blue;
+  font-weight: bold;
 }
 END
 
 my $simple = CSS::Inliner::Parser->new();
 
-$simple->read({css => $css});
+$simple->read({ css => $css });
 
 my $ordered = $simple->write();
 

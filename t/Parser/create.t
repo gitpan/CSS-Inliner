@@ -10,10 +10,10 @@ use_ok('CSS::Inliner::Parser');
 my $simple = CSS::Inliner::Parser->new();
 
 #test creation of empty selector
-$simple->add_entry({selector => '.empty', properties => {}});
+$simple->add_qualified_rule({ selector => '.empty', declarations => {} });
 
 #test creation of initialized selector
-$simple->add_entry({selector => '.bar', properties => { color => 'blue', 'font-size' => '16px'}});
+$simple->add_qualified_rule({ selector => '.bar', declarations => { color => 'blue', 'font-size' => '16px'} });
 
 my $ordered = $simple->write();
 
@@ -21,8 +21,8 @@ my $expected = <<END;
 .empty {
 }
 .bar {
-	color: blue;
-	font-size: 16px;
+  color: blue;
+  font-size: 16px;
 }
 END
 
